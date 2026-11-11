@@ -197,6 +197,19 @@ function Find-ToolCommand([string]$Name, [string]$Configured) {
     }
     return ''
 }
+function Get-CodexAccountLabel([object]$Account) {
+    $email = [string]$Account.email
+    $alias = [string]$Account.alias
+    $name = [string]$Account.account_name
+    if ($Account.auth_mode -eq 'apikey') {
+        $identity = if ($name) { $name } elseif ($alias) { $alias } else { '未命名密钥' }
+        if ($alias -and $name) { $identity = "$alias / $name" }
+        return "API Key $identity $email".Trim()
+    }
+    $identity = if ($email) { $email } elseif ($alias) { $alias } elseif ($name) { $name } else { '未命名账号' }
+    if ($alias -and $email) { $identity = "$alias / $email" }
+    return "ChatGPT $identity"
+}
 $exe = Find-ToolCommand ([string]$toolSel.id) ([string]$toolSel.exe)
 if (-not $exe) {
     $links = @{ claude='https://code.claude.com/docs/en/setup'; codex='https://developers.openai.com/codex/cli/'; grok='https://docs.x.ai/build/overview' }
@@ -232,11 +245,47 @@ if ($toolSel.id -eq 'codex' -and -not $DryRun) {
     }
     Write-Host '正在读取 Codex 账号和额度……' -ForegroundColor Cyan
     & $auth list
-    if ($LASTEXITCODE -ne 0) { Write-Host '账号列表读取失败；请先运行 codex-auth login 添加账号。' -ForegroundColor Red; exit 1 }
-    $account = Read-Host '输入要使用的账号序号或别名（直接回车取消）'
-    if ([string]::IsNullOrWhiteSpace($account)) { exit 0 }
-    & $auth switch $account.Trim() --no-restart-daemon
-    if ($LASTEXITCODE -ne 0) { Write-Host '账号切换失败，未启动 Codex。请确认已用 codex-auth login 添加账号。' -ForegroundColor Red; exit 1 }
+    if ($LASTEXITCODE -ne 0) { Write-Host '账号列表读取失败；请检查网络、代理和 codex-auth 配置。API Key 导入需要联网验证。' -ForegroundColor Red; exit 1 }
+    try {
+        $accountData = (& $auth list --json --skip-api | Out-String) | ConvertFrom-Json
+        if ($LASTEXITCODE -ne 0) { throw '无法读取账号数据' }
+        $accounts = @($accountData.accounts)
+    } catch { Write-Host '无法读取账号列表，未启动 Codex。' -ForegroundColor Red; exit 1 }
+    if ($accounts.Count -eq 0) { Write-Host '没有已保存的账号，请先运行 codex-auth login。' -ForegroundColor Yellow; exit 1 }
+    $selected = 0
+    for ($i = 0; $i -lt $accounts.Count; $i++) { if ($accounts[$i].active) { $selected = $i; break } }
+    Write-Host '使用 ↑ / ↓ 选择账号，回车确认，Esc 取消。默认选中当前账号。' -ForegroundColor Cyan
+    $startRow = [Console]::CursorTop
+    do {
+        [Console]::SetCursorPosition(0, $startRow)
+        $selectedLabel = Get-CodexAccountLabel $accounts[$selected]
+        $width = [Math]::Max(1, [Console]::WindowWidth - 1)
+        $heading = "当前选择为：$selectedLabel"
+        $limit = [Math]::Max(1, $width - 8)
+        if ($heading.Length -gt $limit) { $heading = $heading.Substring(0, $limit) }
+        [Console]::Write((' ' * $width)); [Console]::SetCursorPosition(0, [Console]::CursorTop)
+        Write-Host $heading -ForegroundColor Cyan
+        for ($i = 0; $i -lt $accounts.Count; $i++) {
+            $marker = if ($i -eq $selected) { '*' } else { ' ' }
+            $active = if ($accounts[$i].active) { '（当前）' } else { '' }
+            $label = Get-CodexAccountLabel $accounts[$i]
+            $line = " $marker $label $active"
+            $width = [Math]::Max(1, [Console]::WindowWidth - 1)
+            if ($line.Length -gt $limit) { $line = $line.Substring(0, $limit) }
+            [Console]::Write((' ' * $width)); [Console]::SetCursorPosition(0, [Console]::CursorTop)
+            Write-Host $line -ForegroundColor $(if ($i -eq $selected) { 'Green' } else { 'Gray' })
+        }
+        $key = [Console]::ReadKey($true).Key
+        if ($key -eq [ConsoleKey]::UpArrow) { $selected = ($selected + $accounts.Count - 1) % $accounts.Count }
+        if ($key -eq [ConsoleKey]::DownArrow) { $selected = ($selected + 1) % $accounts.Count }
+        if ($key -eq [ConsoleKey]::Escape) { exit 0 }
+    } while ($key -ne [ConsoleKey]::Enter)
+    if (-not $accounts[$selected].active) {
+        $selector = [string]$accounts[$selected].account_key
+        if (-not $selector) { Write-Host '账号标识缺失，未启动 Codex。' -ForegroundColor Red; exit 1 }
+        & $auth switch $selector --no-restart-daemon
+        if ($LASTEXITCODE -ne 0) { Write-Host '账号切换失败，未启动 Codex。' -ForegroundColor Red; exit 1 }
+    }
 }
 
 Set-Location -LiteralPath $workingDir

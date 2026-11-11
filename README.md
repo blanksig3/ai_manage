@@ -54,7 +54,9 @@
 - 需要历史记录时，进入工具后使用 Claude Code 或 Codex 自己的会话命令。
 - 启动目录就是右键点击的目录；启动器不会替你切换项目。
 - 首次选择 Codex 且没有 `codex-auth` 时，会通过 npm 安装 `@loongphy/codex-auth`；需要 Node.js、npm 和网络。缺少 npm 时打开 Node.js 下载页面。
-- 请先使用 `codex-auth login` 添加账号；列表及额度由第三方 `codex-auth` 提供，刷新需要网络。选择账号后才启动 Codex；回车可取消。
+- 三个常用账号命令参见 [codex-auth 简明使用手册](codex-auth使用手册.md)。
+- 请先使用 `codex-auth login` 添加账号；列表及额度由第三方 `codex-auth` 提供，刷新需要网络。账号默认选中当前账号，按上下方向键选择、回车确认、Esc 取消。
+- 支持已由 `codex-auth` 管理的 OpenAI 官方 API Key；选择列表会标明 API Key 和脱敏指纹，以便区分同一邮箱下的多个密钥。若已有官方 API Key 格式的 Codex 认证文件，可通过 `codex-auth import <认证文件路径> --alias <名称>` 添加；导入需要联网验证。认证文件含密钥，不要分享或提交到仓库。API Key 使用 API 计费，额度信息与 ChatGPT 订阅不同。
 
 ## 工具探测与配置
 
