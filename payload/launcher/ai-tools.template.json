@@ -1,0 +1,39 @@
+{
+    "networks":  [
+                     {
+                         "name":  "代理 7899",
+                         "proxy":  "http://127.0.0.1:7899"
+                     },
+                     {
+                         "name":  "直连",
+                         "proxy":  ""
+                     }
+                 ],
+    "tools":  [
+                  {
+                      "id":  "claude",
+                      "name":  "Claude Code",
+                      "exe":  "{{CLAUDE_EXE}}",
+                      "openArgs":  [
+                                       "--dangerously-skip-permissions"
+                                   ]
+                  },
+                  {
+                      "id":  "codex",
+                      "name":  "Codex",
+                      "exe":  "{{CODEX_EXE}}",
+                      "openArgs":  [
+                                       "--dangerously-bypass-approvals-and-sandbox",
+                                       "--no-daemon"
+                                   ]
+                  },
+                  {
+                      "id":  "grok",
+                      "name":  "Grok",
+                      "exe":  "",
+                      "openArgs":  [
+
+                                   ]
+                  }
+              ]
+}
