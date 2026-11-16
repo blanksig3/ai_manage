@@ -212,7 +212,7 @@ function Get-CodexAccountLabel([object]$Account) {
 }
 $exe = Find-ToolCommand ([string]$toolSel.id) ([string]$toolSel.exe)
 if (-not $exe) {
-    $links = @{ claude='https://code.claude.com/docs/en/setup'; codex='https://developers.openai.com/codex/cli/'; grok='https://docs.x.ai/build/overview' }
+    $links = @{ claude='https://code.claude.com/docs/en/setup'; codex='https://developers.openai.com/codex/cli/'; grok='https://docs.x.ai/build/overview'; antigravity='https://antigravity.google/docs/cli/install' }
     Write-Host ("未找到 {0}，即将打开安装说明。安装后请重新运行右键启动。" -f $toolSel.name) -ForegroundColor Yellow
     Start-Process $links[[string]$toolSel.id]
     exit 1
