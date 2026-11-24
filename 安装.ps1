@@ -464,7 +464,28 @@ if ($LASTEXITCODE -ne 0 -or ($docsOutput -join "`n") -notmatch 'PASS') {
 }
 $tokenLeak = Get-ChildItem -LiteralPath $RulesDir -Recurse -File | Select-String -SimpleMatch '{{GLOBAL_RULES_ROOT}}','{{CLAUDE_ENTRY_PATH}}','{{LAUNCHER_PATH}}','{{BACKUP_ROOT}}' -ErrorAction SilentlyContinue
 if ($tokenLeak) { throw '安装后的规则仍含未替换令牌。' }
-Write-Ok '启动器 SELFTEST PASS；规则文档检查 PASS；未发现残留令牌。'
+$watchdogScript = Join-Path $RulesDir 'tools\agy_watchdog.py'
+if (-not (Test-Path -LiteralPath $watchdogScript -PathType Leaf)) { throw "缺少看门狗脚本：$watchdogScript" }
+$pythonExe = ''
+$pyCmd = Get-Command 'python.exe' -CommandType Application -ErrorAction SilentlyContinue | Where-Object { $_.Source -and ($_.Source -notlike '*\Microsoft\WindowsApps\*') } | Select-Object -First 1
+if ($pyCmd -and (Test-Path -LiteralPath $pyCmd.Source -PathType Leaf)) {
+    $pythonExe = $pyCmd.Source
+} else {
+    foreach ($pat in @((Join-Path $env:LOCALAPPDATA 'Programs\Python\Python*\python.exe'), 'C:\Python*\python.exe', 'D:\Python\Python*\python.exe')) {
+        $hit = Get-Item -Path $pat -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1
+        if ($hit -and (Test-Path -LiteralPath $hit.FullName -PathType Leaf)) { $pythonExe = $hit.FullName; break }
+    }
+}
+if ($pythonExe) {
+    $wdOutput = & $pythonExe -X utf8 $watchdogScript --self-test 2>&1
+    if ($LASTEXITCODE -ne 0 -or ($wdOutput -join "`n") -notmatch 'SELFTEST PASS') {
+        throw "Antigravity 看门狗自检失败：$($wdOutput -join ' ')"
+    }
+    Write-Ok '启动器 SELFTEST PASS；规则文档检查 PASS；看门狗 SELFTEST PASS；未发现残留令牌。'
+} else {
+    Write-Warn2 '未检测到 Python 3，跳过 Antigravity 看门狗自检；需要时请安装 Python 3。'
+    Write-Ok '启动器 SELFTEST PASS；规则文档检查 PASS；未发现残留令牌。'
+}
 
 Write-Host ''
 Write-Host '安装完成。' -ForegroundColor Green

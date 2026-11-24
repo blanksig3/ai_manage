@@ -123,6 +123,30 @@ if (Test-Path -LiteralPath $docsScript -PathType Leaf) {
 $tokens = Get-ChildItem -LiteralPath $rulesDir -Recurse -File | Select-String -SimpleMatch '{{GLOBAL_RULES_ROOT}}','{{CLAUDE_ENTRY_PATH}}','{{LAUNCHER_PATH}}','{{BACKUP_ROOT}}' -ErrorAction SilentlyContinue
 if ($tokens) { Fail '规则目录仍含安装令牌' } else { Pass '安装令牌已全部替换' }
 
+$watchdogScript = Join-Path $rulesDir 'tools\agy_watchdog.py'
+if (Test-Path -LiteralPath $watchdogScript -PathType Leaf) {
+    Pass "Antigravity 看门狗脚本：$watchdogScript"
+    $pythonExe = ''
+    $pyCmd = Get-Command 'python.exe' -CommandType Application -ErrorAction SilentlyContinue | Where-Object { $_.Source -and ($_.Source -notlike '*\Microsoft\WindowsApps\*') } | Select-Object -First 1
+    if ($pyCmd -and (Test-Path -LiteralPath $pyCmd.Source -PathType Leaf)) {
+        $pythonExe = $pyCmd.Source
+    } else {
+        foreach ($pat in @((Join-Path $env:LOCALAPPDATA 'Programs\Python\Python*\python.exe'), 'C:\Python*\python.exe', 'D:\Python\Python*\python.exe')) {
+            $hit = Get-Item -Path $pat -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1
+            if ($hit -and (Test-Path -LiteralPath $hit.FullName -PathType Leaf)) { $pythonExe = $hit.FullName; break }
+        }
+    }
+    if ($pythonExe) {
+        $wdOutput = & $pythonExe -X utf8 $watchdogScript --self-test 2>&1
+        if ($LASTEXITCODE -eq 0 -and ($wdOutput -join "`n") -match 'SELFTEST PASS') { Pass 'Antigravity 看门狗 SELFTEST' }
+        else { Fail "Antigravity 看门狗 SELFTEST：$($wdOutput -join ' ')" }
+    } else {
+        Warn '未检测到 Python 3，跳过 Antigravity 看门狗自检。'
+    }
+} else {
+    Fail "缺少 Antigravity 看门狗脚本：$watchdogScript"
+}
+
 $purgeProfile = Join-Path (Join-Path $UserHome '.dsh') 'profiles\dsh-tui'
 $purgePkg = Join-Path $purgeProfile 'node_modules\dsh-purge-community\package.json'
 if (Test-Path -LiteralPath $purgePkg -PathType Leaf) {

@@ -240,6 +240,24 @@ function Find-ToolCommand([string]$Name, [string]$Configured) {
     }
     return ''
 }
+function Find-PythonCommand {
+    foreach ($name in @('python.exe', 'python')) {
+        $cmd = Get-Command $name -CommandType Application -ErrorAction SilentlyContinue | Where-Object {
+            $_.Source -and ($_.Source -notlike '*\Microsoft\WindowsApps\*')
+        } | Select-Object -First 1
+        if ($cmd -and (Test-Path -LiteralPath $cmd.Source -PathType Leaf)) { return $cmd.Source }
+    }
+    $globs = @(
+        (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python*\python.exe'),
+        'C:\Python*\python.exe',
+        'D:\Python\Python*\python.exe'
+    )
+    foreach ($pattern in $globs) {
+        $hit = Get-Item -Path $pattern -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1
+        if ($hit -and (Test-Path -LiteralPath $hit.FullName -PathType Leaf)) { return $hit.FullName }
+    }
+    return ''
+}
 function Get-CodexAccountLabel([object]$Account) {
     $email = [string]$Account.email
     $alias = [string]$Account.alias
@@ -375,7 +393,25 @@ if ($DryRun) {
     Write-Host ("[DryRun] WORKING_DIR={0}" -f $workingDir)
     Write-Host ("[DryRun] {0} {1}" -f $exe, ($toolArgs -join ' | '))
     Write-Host ("[DryRun] HTTP_PROXY={0}" -f $env:HTTP_PROXY)
+    if ($toolSel.id -eq 'antigravity') {
+        Write-Host '[DryRun] AGY_WATCHDOG=singleton-terminal-after-start'
+    }
     exit 0
+}
+
+if ($toolSel.id -eq 'antigravity') {
+    $watchdogCandidates = @(
+        (Join-Path (Join-Path $env:USERPROFILE '.ai-global-rules') 'tools\agy_watchdog.py'),
+        (Join-Path $PSScriptRoot '..\global-rules\tools\agy_watchdog.py')
+    )
+    $watchdogScript = $watchdogCandidates | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+    $pyExe = Find-PythonCommand
+    if ($watchdogScript -and $pyExe) {
+        $proxyMode = if ($netSel.proxy) { 'custom' } else { 'direct' }
+        $wdArgs = @('-X', 'utf8', ('"{0}"' -f $watchdogScript), '--ensure-daemon', '--launcher-pid', "$PID", '--wait-for-agy', '15', '--proxy-mode', $proxyMode)
+        if ($netSel.proxy) { $wdArgs += @('--proxy-url', ('"{0}"' -f [string]$netSel.proxy)) }
+        Start-Process -FilePath $pyExe -ArgumentList $wdArgs -WindowStyle Hidden
+    }
 }
 
 if ($toolSel.id -eq 'dsh') {

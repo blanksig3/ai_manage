@@ -22,6 +22,7 @@ source: 2026-09-02 合并 D 盘旧版与审计修复版，并按用户做事风�
 - Claude/Codex 原生会话历史属于用户数据，不得因清理工作流、配置或含有某个词而删除、截断或改写。
 - 本库不使用 git。版本和回退由 `{{BACKUP_ROOT}}/` 备份目录和 [变更记录.md](变更记录.md) 承担。
 - 安装或升级 DeepSeek (DSH) 时同步安装并启用 dsh-purge：由 `payload/global-rules/tools/install-dsh-purge.ps1` 把 `dsh-purge-community` 装进 `dsh-tui` profile、固定 `DSH_BASE` / `PURGE_PROFILE_DIR` / `DSH_PROFILE` 并应用宿主补丁，重启 DSH 后生效；跳过或失败要在交付说明里写明原因。
+- 通过右键启动器选择 `4`（Antigravity）并完成代理或直连选择后，在 Antigravity 进程正常启动并稳定存活后自动以单例模式拉起独立终端运行 `tools/agy_watchdog.py`（已运行看门狗时不重复开窗）；看门狗仅恢复真实闪退的对话窗口，待全部 Antigravity 窗口正常关闭且无存活进程后自动正常退出。
 
 ## 阶段 A：最小读取
 

@@ -39,3 +39,7 @@ source: 2026-09-02 通用合并版
 ## DeepSeek (DSH) 默认增强
 
 本库随包的安装助手 `tools/install-dsh-purge.ps1` 给 DeepSeek (DSH) 装上 dsh-purge：装 `dsh-purge-community` 到 `dsh-tui` profile、固定 `DSH_BASE` / `PURGE_PROFILE_DIR` / `DSH_PROFILE`、再调插件自带的 apply 打宿主补丁。`安装.ps1` 部署完规则后自动调用它，右键启动器在 DSH 每次启动前补查一次；单独重跑加 `-DryRun` 只看计划。
+
+## Antigravity 单例看门狗
+
+`tools/agy_watchdog.py` 负责 Antigravity (`agy`) 的多窗口单实例防闪退守护。右键启动器选 `4`（Antigravity）并选完代理或直连、确认 `agy.exe` 正常拉起后，自动在独立终端窗口启动单例看门狗；已有看门狗在守护时不重复开窗。看门狗只对真实闪退的对话按原对话或新窗口恢复，当所有 Antigravity 窗口正常关闭后，看门狗终端自动正常退出。

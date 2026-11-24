@@ -1,12 +1,13 @@
 # AI 全局规则 + 右键启动（Windows 便携版）
 
-当前版本：**0.0.2**（见 VERSION）。
+当前版本：**0.0.3**（见 VERSION）。
 
 这是一份可交给其他 Windows 用户使用的独立安装包，包含：
 
 - 全局规则、记忆路由、模板和自检工具；
 - “在此打开 AI 终端”右键菜单；
 - Claude Code / Codex / Grok / Antigravity / DeepSeek (DSH) 与直连 / 7899 代理选择；
+- Antigravity 全局单例终端看门狗：在选定代理正常启动 Antigravity 后自动开启独立终端监听，仅恢复闪退对话，全部 Antigravity 窗口正常关闭后自动退出；
 - DeepSeek (DSH) 默认安装并启用 dsh-purge 插件（安装器与右键启动器共用同一个幂等助手脚本）；
 - Codex 账号列表、用量显示与启动前账号切换；
 - 选完 AI 和代理后，直接在右键目录进入工具自身的交互界面；
@@ -32,6 +33,7 @@
 | 启动器 | `%USERPROFILE%\.local\bin\ai-picker.ps1` |
 | 启动器配置 | `%USERPROFILE%\.local\bin\ai-tools.json` |
 | 安装状态 | `%USERPROFILE%\.ai-global-rules-install.json` |
+| Antigravity 看门狗 | `%USERPROFILE%\.ai-global-rules\tools\agy_watchdog.py` |
 | dsh-purge 插件 | `%USERPROFILE%\.dsh\profiles\dsh-tui\node_modules\dsh-purge-community` |
 | dsh-purge 安装助手 | `%USERPROFILE%\.ai-global-rules\tools\install-dsh-purge.ps1` |
 | 可恢复备份 | `%USERPROFILE%\.ai-global-rules-backup\时间戳-*` |
@@ -49,6 +51,7 @@
 选择 AI（1 Claude Code、2 Codex、3 Grok、4 Antigravity、5 DeepSeek (DSH)）
   → 选择代理或直连
   → Codex：显示账号和用量，选择账号
+  → Antigravity：正常启动后自动在独立终端拉起单例看门狗（全部窗口正常关闭后看门狗自动退出）
   → 进入所选工具
 ```
 
@@ -157,3 +160,12 @@ manifest.sha256
 - Windows 10 需要 Windows Terminal；Windows 11 可回退到 Windows PowerShell。
 - 历史会话由 Claude Code/Codex 自己管理，启动器不依赖其本地会话文件布局。
 - 全局规则是协作纪律与操作约束，仍服从平台系统/开发者指令。
+
+## Antigravity 单例看门狗
+
+选择 `4 Antigravity` 并选定代理或直连后，启动器会立即启动 `agy.exe`，并在后台调用 `%USERPROFILE%\.ai-global-rules\tools\agy_watchdog.py --ensure-daemon`：
+
+1. 等待 `agy.exe` 进程真实启动并稳定存活后再行动；
+2. 通过 Windows 命名互斥锁 `Local\AGY_Global_Watchdog_Mutex` 保证全机只开一个看门狗终端窗口（如果看门狗已在运行，不会重复弹窗，新开的反重力窗口会在 2 秒内自动纳入守护）；
+3. 守护期间仅在某个对话发生真实闪退时自动重开该对话窗口并保留原网络配置，手动关闭或正常退出不误拉；
+4. 当所有 Antigravity 窗口都正常关闭且无存活 `agy.exe` 进程时，看门狗终端自动正常退出。
