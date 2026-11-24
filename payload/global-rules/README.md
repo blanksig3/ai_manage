@@ -3,7 +3,7 @@ scope: human-readme
 status: active
 owner: user
 created: 2026-08-31
-updated: 2026-09-29
+updated: 2026-11-24
 review_after: 2027-09-01
 source: 2026-09-02 通用合并版
 ---
@@ -35,3 +35,7 @@ source: 2026-09-02 通用合并版
 - `powershell -File tools/check_docs.ps1` 全库检查
 - `powershell -File tools/check_docs.ps1 -SelfTest` 反例自检
 - `powershell -File tools/check_docs.ps1 -AsOf 2027-06-01` 按指定日期判断复审到期
+
+## DeepSeek (DSH) 默认增强
+
+本库随包的安装助手 `tools/install-dsh-purge.ps1` 给 DeepSeek (DSH) 装上 dsh-purge：装 `dsh-purge-community` 到 `dsh-tui` profile、固定 `DSH_BASE` / `PURGE_PROFILE_DIR` / `DSH_PROFILE`、再调插件自带的 apply 打宿主补丁。`安装.ps1` 部署完规则后自动调用它，右键启动器在 DSH 每次启动前补查一次；单独重跑加 `-DryRun` 只看计划。

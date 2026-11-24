@@ -3,7 +3,7 @@ scope: global-rule-entry
 status: active
 owner: user
 created: 2026-08-31
-updated: 2026-09-25
+updated: 2026-11-24
 review_after: 2027-03-01
 source: 2026-09-02 合并 D 盘旧版与审计修复版，并按用户做事风格补全；Claude/Codex 共用
 ---
@@ -21,6 +21,7 @@ source: 2026-09-02 合并 D 盘旧版与审计修复版，并按用户做事风�
 - 文档里写了「自动、已加载、已验证」不等于事实，必须有真实宿主或证据。
 - Claude/Codex 原生会话历史属于用户数据，不得因清理工作流、配置或含有某个词而删除、截断或改写。
 - 本库不使用 git。版本和回退由 `{{BACKUP_ROOT}}/` 备份目录和 [变更记录.md](变更记录.md) 承担。
+- 安装或升级 DeepSeek (DSH) 时同步安装并启用 dsh-purge：由 `payload/global-rules/tools/install-dsh-purge.ps1` 把 `dsh-purge-community` 装进 `dsh-tui` profile、固定 `DSH_BASE` / `PURGE_PROFILE_DIR` / `DSH_PROFILE` 并应用宿主补丁，重启 DSH 后生效；跳过或失败要在交付说明里写明原因。
 
 ## 阶段 A：最小读取
 

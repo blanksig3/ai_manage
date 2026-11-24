@@ -12,6 +12,7 @@ $PackageId = 'ai-global-rules-context-launcher-v1'
 $ManagedBegin = '<!-- AI-GLOBAL-RULES:BEGIN -->'
 $ManagedEnd = '<!-- AI-GLOBAL-RULES:END -->'
 $script:Failures = New-Object 'Collections.Generic.List[string]'
+$script:Warnings = New-Object 'Collections.Generic.List[string]'
 
 function Get-FullPath([string]$Path) { return [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($Path)).TrimEnd('\') }
 function Assert-ChildPath([string]$Child, [string]$Parent, [string]$Name) {
@@ -24,6 +25,7 @@ function Assert-SamePath([string]$Actual, [string]$Expected, [string]$Name) {
 }
 function Pass([string]$Text) { Write-Host "[PASS] $Text" -ForegroundColor Green }
 function Fail([string]$Text) { Write-Host "[FAIL] $Text" -ForegroundColor Red; $script:Failures.Add($Text) }
+function Warn([string]$Text) { Write-Host "[WARN] $Text" -ForegroundColor Yellow; $script:Warnings.Add($Text) }
 function Test-ManagedEntry([string]$Path, [string]$Expected) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { Fail "入口缺失：$Path"; return }
     $text = [IO.File]::ReadAllText($Path, [Text.Encoding]::UTF8)
@@ -121,6 +123,30 @@ if (Test-Path -LiteralPath $docsScript -PathType Leaf) {
 $tokens = Get-ChildItem -LiteralPath $rulesDir -Recurse -File | Select-String -SimpleMatch '{{GLOBAL_RULES_ROOT}}','{{CLAUDE_ENTRY_PATH}}','{{LAUNCHER_PATH}}','{{BACKUP_ROOT}}' -ErrorAction SilentlyContinue
 if ($tokens) { Fail '规则目录仍含安装令牌' } else { Pass '安装令牌已全部替换' }
 
+$purgeProfile = Join-Path (Join-Path $UserHome '.dsh') 'profiles\dsh-tui'
+$purgePkg = Join-Path $purgeProfile 'node_modules\dsh-purge-community\package.json'
+if (Test-Path -LiteralPath $purgePkg -PathType Leaf) {
+    try {
+        $purgeVersion = [string](([IO.File]::ReadAllText($purgePkg, [Text.Encoding]::UTF8)) | ConvertFrom-Json).version
+        Pass ("dsh-purge 插件：{0}（profile dsh-tui）" -f $purgeVersion)
+    } catch { Warn 'dsh-purge 插件版本无法解析' }
+} else {
+    Warn ("dsh-purge 未安装：{0}；运行 tools\install-dsh-purge.ps1 或首次进入 DeepSeek (DSH) 时补齐。" -f $purgePkg)
+}
+$dshBase = [Environment]::GetEnvironmentVariable('DSH_BASE', 'User')
+if ($dshBase -and (Test-Path -LiteralPath (Join-Path $dshBase 'dsh-agent-instructions\lib') -PathType Container)) {
+    Pass 'dsh-purge 实例根已固定（DSH_BASE）'
+} else {
+    Warn 'dsh-purge 实例根未固定（DSH_BASE）；重跑 tools\install-dsh-purge.ps1。'
+}
+$missingPins = @()
+$expectedPins = [ordered]@{ PURGE_PROFILE_DIR = $purgeProfile; DSH_PROFILE = 'dsh-tui' }
+foreach ($key in $expectedPins.Keys) {
+    if ([Environment]::GetEnvironmentVariable($key, 'User') -ne [string]$expectedPins[$key]) { $missingPins += $key }
+}
+if ($missingPins.Count -eq 0) { Pass 'dsh-purge profile 已固定（PURGE_PROFILE_DIR / DSH_PROFILE）' }
+else { Warn ("dsh-purge profile 未固定：{0}；重跑 tools\install-dsh-purge.ps1。" -f ($missingPins -join '、')) }
+
 if (-not $SkipRegistry -and -not [bool]$state.registrySkipped) {
     foreach ($path in @(
         'HKCU:\Software\Classes\Directory\shell\AITerminalHere',
@@ -135,6 +161,9 @@ if (-not $SkipRegistry -and -not [bool]$state.registrySkipped) {
 }
 
 Write-Host ''
+if ($script:Warnings.Count -gt 0) {
+    Write-Host "提示：$($script:Warnings.Count) 项（不影响通过，按需处理）。" -ForegroundColor Yellow
+}
 if ($script:Failures.Count -gt 0) {
     Write-Host "检查失败：$($script:Failures.Count) 项。" -ForegroundColor Red
     exit 1

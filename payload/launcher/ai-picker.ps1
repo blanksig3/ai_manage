@@ -282,6 +282,18 @@ if ($toolSel.id -eq 'dsh' -and -not $exe -and -not $DryRun) {
     if ($LASTEXITCODE -ne 0) { Write-Host 'DeepSeek (DSH) 终端安装失败，请检查网络、代理或 npm 后重试。' -ForegroundColor Red; exit 1 }
     $exe = Find-ToolCommand ([string]$toolSel.id) ([string]$toolSel.exe)
 }
+if ($toolSel.id -eq 'dsh' -and -not $DryRun) {
+    # DeepSeek (DSH) 默认带 dsh-purge：插件缺失时用安装期落地的同一脚本补齐。
+    $purgeHelper = Join-Path (Join-Path $env:USERPROFILE '.ai-global-rules') 'tools\install-dsh-purge.ps1'
+    $purgeProfile = Join-Path (Join-Path $env:USERPROFILE '.dsh') 'profiles\dsh-tui'
+    $purgePkg = Join-Path $purgeProfile 'node_modules\dsh-purge-community\package.json'
+    if ((Test-Path -LiteralPath $purgeHelper -PathType Leaf) -and
+        (Test-Path -LiteralPath $purgeProfile -PathType Container) -and
+        -not (Test-Path -LiteralPath $purgePkg -PathType Leaf)) {
+        Write-Host 'DeepSeek (DSH) 默认安装 dsh-purge 插件，正在补齐……' -ForegroundColor Yellow
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $purgeHelper -Quiet
+    }
+}
 if (-not $exe) {
     $links = @{ claude='https://code.claude.com/docs/en/setup'; codex='https://developers.openai.com/codex/cli/'; grok='https://docs.x.ai/build/overview'; antigravity='https://antigravity.google/docs/cli/install'; dsh='https://github.com/ccch1mneyyy/dsh-TUI' }
     Write-Host ("未找到 {0}，即将打开安装说明。安装后请重新运行右键启动。" -f $toolSel.name) -ForegroundColor Yellow

@@ -7,8 +7,10 @@ param(
     [string]$CodexExe = '',
     [string]$AntigravityExe = '',
     [string]$DshExe = '',
+    [string]$DshPurgeTarball = '',
     [string]$TestRoot = '',
     [switch]$SkipRegistry,
+    [switch]$SkipDshPurge,
     [switch]$Force
 )
 
@@ -321,6 +323,43 @@ if (Test-Path -LiteralPath $RulesDir) {
 Move-Item -LiteralPath $stageRules -Destination $RulesDir
 Write-Ok $RulesDir
 
+Write-Step '安装并启用 dsh-purge 插件（DeepSeek (DSH) 默认增强）'
+$purgeHelper = Join-Path $RulesDir 'tools\install-dsh-purge.ps1'
+$purgeState = [pscustomobject]@{ status = 'skipped'; version = ''; profile = 'dsh-tui'; detail = '' }
+if ($TestRoot -or $SkipDshPurge) {
+    $purgeState.detail = if ($TestRoot) { '隔离测试' } else { '-SkipDshPurge' }
+    Write-Warn2 ("跳过 dsh-purge：{0}" -f $purgeState.detail)
+} elseif (-not (Test-Path -LiteralPath $purgeHelper -PathType Leaf)) {
+    $purgeState.detail = '缺少 tools\install-dsh-purge.ps1'
+    Write-Warn2 ("跳过 dsh-purge：{0}" -f $purgeState.detail)
+} else {
+    try {
+        $purgeParams = @{}
+        if ($DshPurgeTarball) { $purgeParams['TarballPath'] = $DshPurgeTarball }
+        $purge = & $purgeHelper @purgeParams
+        if ($purge) {
+            $purgeState = [pscustomobject]@{
+                status = [string]$purge.status
+                version = [string]$purge.version
+                profile = [string]$purge.profile
+                detail = [string]$purge.detail
+            }
+        }
+        if ($purgeState.status -eq 'pending-profile') {
+            Write-Warn2 'DeepSeek (DSH) 还没启动过；首次启动后会自动补齐 dsh-purge。'
+        } elseif ($purgeState.status -eq 'applied') {
+            Write-Ok 'dsh-purge 已安装并应用；重启 DeepSeek (DSH) 后生效。'
+        } elseif ($purgeState.status -eq 'installed') {
+            Write-Warn2 'dsh-purge 已安装，补丁未应用；可在插件面板点「应用」后重启。'
+        } else {
+            Write-Warn2 ("dsh-purge 状态：{0} {1}" -f $purgeState.status, $purgeState.detail)
+        }
+    } catch {
+        $purgeState = [pscustomobject]@{ status = 'failed'; version = ''; profile = 'dsh-tui'; detail = $_.Exception.Message }
+        Write-Warn2 ("dsh-purge 安装失败：{0}" -f $purgeState.detail)
+    }
+}
+
 Write-Step '安装右键启动器'
 New-Item -ItemType Directory -Path $LauncherDir -Force | Out-Null
 [void](Backup-IfExists $pickerPath (Join-Path $operationBackup 'current-ai-picker.ps1'))
@@ -405,6 +444,7 @@ $state = [pscustomobject]@{
     operationBackup = $operationBackup
     original = $original
     entryInstall = $entryInstall
+    purge = $purgeState
     hashes = [pscustomobject]@{
         picker = (Get-FileHash -LiteralPath $pickerPath -Algorithm SHA256).Hash.ToLowerInvariant()
         config = (Get-FileHash -LiteralPath $configPath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -431,5 +471,6 @@ Write-Host '安装完成。' -ForegroundColor Green
 Write-Host "  全局规则：$RulesDir" -ForegroundColor Gray
 Write-Host "  启动器：  $pickerPath" -ForegroundColor Gray
 Write-Host "  右键菜单：$MenuText（$registryMode）" -ForegroundColor Gray
+Write-Host "  dsh-purge： $($purgeState.status) $($purgeState.version)（profile $($purgeState.profile)）" -ForegroundColor Gray
 Write-Host "  回退备份：$operationBackup" -ForegroundColor Gray
 Write-Host ''
