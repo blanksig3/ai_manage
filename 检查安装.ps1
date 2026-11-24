@@ -99,7 +99,7 @@ Test-ManagedEntry ([string]$state.codexEntry) $ruleEntry
 try {
     $cfg = [IO.File]::ReadAllText($configPath, [Text.Encoding]::UTF8) | ConvertFrom-Json
     $ids = @($cfg.tools | ForEach-Object { $_.id })
-    if (($ids -join ',') -eq 'claude,codex,grok') { Pass '启动器工具配置：Claude、Codex、Grok' }
+    if (($ids -join ',') -eq 'claude,codex,grok,antigravity,dsh') { Pass '启动器工具配置：Claude、Codex、Grok、Antigravity、DeepSeek (DSH)' }
     else { Fail '启动器工具配置或顺序不正确' }
 } catch { Fail "启动器配置无法解析：$($_.Exception.Message)" }
 

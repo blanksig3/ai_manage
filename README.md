@@ -6,7 +6,7 @@
 
 - 全局规则、记忆路由、模板和自检工具；
 - “在此打开 AI 终端”右键菜单；
-- Claude Code / Codex / Grok 与直连 / 7899 代理选择；
+- Claude Code / Codex / Grok / Antigravity / DeepSeek (DSH) 与直连 / 7899 代理选择；
 - Codex 账号列表、用量显示与启动前账号切换；
 - 选完 AI 和代理后，直接在右键目录进入工具自身的交互界面；
 - 一键安装、卸载、安装检查和 SHA-256 完整性清单。
@@ -16,7 +16,7 @@
 ## 最快安装
 
 1. 完整解压 ZIP；不要只单独复制某个脚本。
-2. 可先安装 Claude Code、Codex 或 Grok；未安装的工具在选择时会打开安装说明。
+2. 可先安装 Claude Code、Codex、Grok、Antigravity 或 DeepSeek (DSH)；选择 DeepSeek (DSH) 时若已装 Node.js，启动器会在首次缺少时自动通过 npm 安装，其他未安装的工具在选择时会打开安装说明。
 3. 双击 `安装.cmd`。Windows 10 未安装 Windows Terminal 时会打开包内安装程序；请完成安装，回到原窗口按回车。若安装未完成，按提示重新运行。
 4. 安装完成后，在任意文件夹空白处或文件夹图标上右键，选择“在此打开 AI 终端”。Windows 11 通常位于“显示更多选项”中。
 5. 双击 `检查安装.cmd` 可再次核验。
@@ -43,7 +43,7 @@
 ## 右键启动流程
 
 ```text
-选择 AI（1 Claude、2 Codex、3 Grok）
+选择 AI（1 Claude Code、2 Codex、3 Grok、4 Antigravity、5 DeepSeek (DSH)）
   → 选择代理或直连
   → Codex：显示账号和用量，选择账号
   → 进入所选工具
@@ -51,8 +51,9 @@
 
 - 选择代理时按键盘 `↑` 返回选择 AI；选择 AI 时按 `↑` 退出。
 - 启动器不扫描、归类、恢复或清理历史会话，也不维护会话指针。
-- 需要历史记录时，进入工具后使用 Claude Code 或 Codex 自己的会话命令。
+- 需要历史记录时，进入工具后使用各 CLI 自己的会话命令。
 - 启动目录就是右键点击的目录；启动器不会替你切换项目。
+- DeepSeek (DSH) 基于 `@deepseek-ai/dsh` + `@deepseek-harness-tui/dsh-tui` 在右键目录直接进入终端交互界面；本机已安装 Node.js 时首次选择会自动通过 npm 安装（需要网络，会先走所选代理或直连），也可手动运行 `npm install -g @deepseek-ai/dsh @deepseek-harness-tui/dsh-tui`。启动前会在当前会话自动将全局 npm 目录前置到 `PATH`，避免与桌面端内置旧版冲突。
 - 首次选择 Codex 且没有 `codex-auth` 时，会通过 npm 安装 `@loongphy/codex-auth`；需要 Node.js、npm 和网络。缺少 npm 时打开 Node.js 下载页面。
 - 三个常用账号命令参见 [codex-auth 简明使用手册](codex-auth使用手册.md)。
 - 请先使用 `codex-auth login` 添加账号；列表及额度由第三方 `codex-auth` 提供，刷新需要网络。账号默认选中当前账号，按上下方向键选择、回车确认、Esc 取消。
@@ -62,9 +63,9 @@
 
 安装器按以下顺序寻找工具：
 
-1. 显式参数 `-ClaudeExe`、`-CodexExe`；
-2. 当前 `PATH` 中的命令；
-3. `%APPDATA%\npm` 下的常见 `.cmd` / `.exe`。
+1. 显式参数 `-ClaudeExe`、`-CodexExe`、`-AntigravityExe`、`-DshExe`；
+2. 当前 `PATH` 中的命令（Antigravity 支持 `agy`/`antigravity`，DeepSeek (DSH) 优先探测 `dsh-tui`/`dst`）；
+3. `%LOCALAPPDATA%\agy\bin`、`%APPDATA%\npm` 等常见目录。
 
 默认第一个网络选项是 `127.0.0.1:7899` 代理，第二个是“直连”。可编辑安装后的 `ai-tools.json` 调整代理、危险参数或工具路径。
 
@@ -80,7 +81,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\安装.ps1
 
 ```powershell
 # 明确指定工具
-.\安装.ps1 -ClaudeExe C:\Tools\claude.exe -CodexExe C:\Tools\codex.exe
+.\安装.ps1 -ClaudeExe C:\Tools\claude.exe -CodexExe C:\Tools\codex.exe -AntigravityExe C:\Tools\agy.exe -DshExe C:\Tools\dsh-tui.cmd
 
 # 已有同名但非本安装器所有的目录时，确认覆盖（安装前仍会备份）
 .\安装.ps1 -Force

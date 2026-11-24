@@ -5,6 +5,8 @@ param(
     [string]$LauncherDir = '',
     [string]$ClaudeExe = '',
     [string]$CodexExe = '',
+    [string]$AntigravityExe = '',
+    [string]$DshExe = '',
     [string]$TestRoot = '',
     [switch]$SkipRegistry,
     [switch]$Force
@@ -237,6 +239,8 @@ if (-not $TestRoot) {
 
 $claudePath = Resolve-Executable $ClaudeExe @('claude.exe','claude.cmd','claude') @('%APPDATA%\npm\claude.cmd','%APPDATA%\npm\claude.exe')
 $codexPath = Resolve-Executable $CodexExe @('codex.exe','codex.cmd','codex') @('%APPDATA%\npm\codex.cmd','%APPDATA%\npm\codex.exe')
+$antigravityPath = Resolve-Executable $AntigravityExe @('agy.exe','agy.cmd','agy','antigravity.cmd','antigravity.exe') @('%LOCALAPPDATA%\agy\bin\agy.exe','%APPDATA%\npm\agy.cmd')
+$dshPath = Resolve-Executable $DshExe @('dsh-tui.cmd','dsh-tui.exe','dsh-tui') @('%APPDATA%\npm\dsh-tui.cmd','%LOCALAPPDATA%\Programs\dsh-tui\dsh-tui.exe')
 
 $statePath = Join-Path $UserHome '.ai-global-rules-install.json'
 $priorState = $null
@@ -326,13 +330,17 @@ Copy-Item -LiteralPath $payloadLauncher -Destination $pickerPath -Force
 $template = [IO.File]::ReadAllText($configTemplate, [Text.Encoding]::UTF8)
 $template = $template.Replace('{{CLAUDE_EXE}}', (ConvertTo-ForwardPath $claudePath).Replace('\','\\'))
 $template = $template.Replace('{{CODEX_EXE}}', (ConvertTo-ForwardPath $codexPath).Replace('\','\\'))
+$template = $template.Replace('{{ANTIGRAVITY_EXE}}', (ConvertTo-ForwardPath $antigravityPath).Replace('\','\\'))
+$template = $template.Replace('{{DSH_EXE}}', (ConvertTo-ForwardPath $dshPath).Replace('\','\\'))
 $toolConfig = $template | ConvertFrom-Json
 foreach ($item in @($toolConfig.tools)) {
     if ($item.id -eq 'claude') { $item.exe = $claudePath }
     if ($item.id -eq 'codex') { $item.exe = $codexPath }
+    if ($item.id -eq 'antigravity') { $item.exe = $antigravityPath }
+    if ($item.id -eq 'dsh') { $item.exe = $dshPath }
 }
 Write-Utf8NoBom $configPath ($toolConfig | ConvertTo-Json -Depth 16)
-Write-Ok '已配置 Claude、Codex 和 Grok；启动时检测是否安装。'
+Write-Ok '已配置 Claude、Codex、Grok、Antigravity 和 DeepSeek (DSH)；启动时检测是否安装。'
 
 Write-Step '接入 Claude Code 与 Codex 全局入口'
 $rulesForward = ConvertTo-ForwardPath (Join-Path $RulesDir 'CLAUDE.md')

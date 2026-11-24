@@ -38,7 +38,15 @@
                   {
                       "id":  "antigravity",
                       "name":  "Antigravity",
-                      "exe":  "",
+                      "exe":  "{{ANTIGRAVITY_EXE}}",
+                      "openArgs":  [
+
+                                   ]
+                  },
+                  {
+                      "id":  "dsh",
+                      "name":  "DeepSeek (DSH)",
+                      "exe":  "{{DSH_EXE}}",
                       "openArgs":  [
 
                                    ]

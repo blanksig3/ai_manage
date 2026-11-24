@@ -186,13 +186,56 @@ if ($Tool) {
 }
 
 function Find-ToolCommand([string]$Name, [string]$Configured) {
-    if ($Configured -and (Test-Path -LiteralPath ([Environment]::ExpandEnvironmentVariables($Configured)) -PathType Leaf)) { return [Environment]::ExpandEnvironmentVariables($Configured) }
-    foreach ($candidate in @("$Name.cmd", "$Name.exe", $Name)) {
-        $command = Get-Command $candidate -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($command) { return $command.Source }
-        foreach ($folder in @((Join-Path $env:APPDATA 'npm'), (Join-Path $env:USERPROFILE '.local\bin'))) {
-            $path = Join-Path $folder $candidate
-            if (Test-Path -LiteralPath $path -PathType Leaf) { return $path }
+    if ($Configured) {
+        $expanded = [Environment]::ExpandEnvironmentVariables($Configured)
+        if (Test-Path -LiteralPath $expanded -PathType Leaf) { return $expanded }
+    }
+    $baseNames = switch ($Name) {
+        'antigravity' { @('agy', 'antigravity') }
+        'dsh'         { @('dsh-tui', 'dst') }
+        default       { @($Name) }
+    }
+    $priorityDirs = switch ($Name) {
+        'antigravity' {
+            @(
+                (Join-Path $env:LOCALAPPDATA 'agy\bin'),
+                (Join-Path $env:APPDATA 'npm'),
+                (Join-Path $env:USERPROFILE '.local\bin')
+            )
+        }
+        'dsh' {
+            @(
+                (Join-Path $env:APPDATA 'npm'),
+                (Join-Path $env:LOCALAPPDATA 'Programs\dsh-tui'),
+                (Join-Path $env:USERPROFILE '.local\bin')
+            )
+        }
+        'npm' {
+            @(
+                (Join-Path $env:ProgramFiles 'nodejs'),
+                (Join-Path $env:APPDATA 'npm'),
+                (Join-Path $env:LOCALAPPDATA 'Programs\nodejs')
+            )
+        }
+        default {
+            @(
+                (Join-Path $env:APPDATA 'npm'),
+                (Join-Path $env:USERPROFILE '.local\bin')
+            )
+        }
+    }
+    foreach ($base in $baseNames) {
+        $candidates = @("$base.cmd", "$base.exe", $base)
+        foreach ($folder in $priorityDirs) {
+            if (-not $folder) { continue }
+            foreach ($candidate in $candidates) {
+                $path = Join-Path $folder $candidate
+                if (Test-Path -LiteralPath $path -PathType Leaf) { return $path }
+            }
+        }
+        foreach ($candidate in $candidates) {
+            $command = Get-Command $candidate -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($command) { return $command.Source }
         }
     }
     return ''
@@ -210,20 +253,40 @@ function Get-CodexAccountLabel([object]$Account) {
     if ($alias -and $email) { $identity = "$alias / $email" }
     return "ChatGPT $identity"
 }
-$exe = Find-ToolCommand ([string]$toolSel.id) ([string]$toolSel.exe)
-if (-not $exe) {
-    $links = @{ claude='https://code.claude.com/docs/en/setup'; codex='https://developers.openai.com/codex/cli/'; grok='https://docs.x.ai/build/overview'; antigravity='https://antigravity.google/docs/cli/install' }
-    Write-Host ("未找到 {0}，即将打开安装说明。安装后请重新运行右键启动。" -f $toolSel.name) -ForegroundColor Yellow
-    Start-Process $links[[string]$toolSel.id]
-    exit 1
-}
-
 if ($netSel.proxy) {
     $env:HTTP_PROXY = $netSel.proxy
     $env:HTTPS_PROXY = $netSel.proxy
     $env:ALL_PROXY = $netSel.proxy
 } else {
     Remove-Item Env:HTTP_PROXY, Env:HTTPS_PROXY, Env:ALL_PROXY -ErrorAction SilentlyContinue
+}
+
+$exe = Find-ToolCommand ([string]$toolSel.id) ([string]$toolSel.exe)
+if ($toolSel.id -eq 'dsh' -and -not $exe -and -not $DryRun) {
+    $npm = Find-ToolCommand 'npm' ''
+    if (-not $npm -and (Test-Path -LiteralPath 'C:\Program Files\nodejs\npm.cmd' -PathType Leaf)) {
+        $npm = 'C:\Program Files\nodejs\npm.cmd'
+    }
+    if (-not $npm) {
+        Write-Host '未检测到 npm，请先安装 Node.js，然后重新启动。' -ForegroundColor Red
+        Start-Process 'https://nodejs.org/en/download'
+        exit 1
+    }
+    Write-Host '未检测到 DeepSeek (DSH) 终端，正在通过 npm 安装 @deepseek-ai/dsh 与 @deepseek-harness-tui/dsh-tui……' -ForegroundColor Yellow
+    $pnpm = Find-ToolCommand 'pnpm' ''
+    if (-not $pnpm) {
+        & $npm install -g pnpm
+        if ($LASTEXITCODE -ne 0) { Write-Host 'pnpm 安装失败，请检查网络、代理或 npm 后重试。' -ForegroundColor Red; exit 1 }
+    }
+    & $npm install -g '@deepseek-ai/dsh' '@deepseek-harness-tui/dsh-tui'
+    if ($LASTEXITCODE -ne 0) { Write-Host 'DeepSeek (DSH) 终端安装失败，请检查网络、代理或 npm 后重试。' -ForegroundColor Red; exit 1 }
+    $exe = Find-ToolCommand ([string]$toolSel.id) ([string]$toolSel.exe)
+}
+if (-not $exe) {
+    $links = @{ claude='https://code.claude.com/docs/en/setup'; codex='https://developers.openai.com/codex/cli/'; grok='https://docs.x.ai/build/overview'; antigravity='https://antigravity.google/docs/cli/install'; dsh='https://github.com/ccch1mneyyy/dsh-TUI' }
+    Write-Host ("未找到 {0}，即将打开安装说明。安装后请重新运行右键启动。" -f $toolSel.name) -ForegroundColor Yellow
+    Start-Process $links[[string]$toolSel.id]
+    exit 1
 }
 
 $toolArgs = @($toolSel.openArgs)
@@ -301,6 +364,17 @@ if ($DryRun) {
     Write-Host ("[DryRun] {0} {1}" -f $exe, ($toolArgs -join ' | '))
     Write-Host ("[DryRun] HTTP_PROXY={0}" -f $env:HTTP_PROXY)
     exit 0
+}
+
+if ($toolSel.id -eq 'dsh') {
+    $prependDirs = @((Split-Path -Parent $exe), (Join-Path $env:APPDATA 'npm')) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Container) }
+    $currentParts = @($env:PATH -split ';' | Where-Object { $_ })
+    $merged = New-Object 'Collections.Generic.List[string]'
+    $seen = New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    foreach ($dir in @($prependDirs + $currentParts)) {
+        if ($seen.Add($dir.TrimEnd('\'))) { [void]$merged.Add($dir) }
+    }
+    $env:PATH = ($merged -join ';')
 }
 
 & $exe @toolArgs
